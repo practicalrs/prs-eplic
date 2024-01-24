@@ -1,10 +1,9 @@
 /// Heavily inspired by:
 /// <https://github.com/nushell/nushell/blob/main/crates/nu-parser/src/lex.rs>
 /// <https://github.com/Overv/bf/blob/master/src/main.rs>
-use crate::{interpreter_error::InterpreterError, Result};
-use std::io::{stdin, Read};
+use crate::{interpreter_error::InterpreterError, tp::Tp, Result};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Cmd {
     Dec,
     DecPtr,
@@ -17,26 +16,24 @@ enum Cmd {
     St,
 }
 
-fn exec(cmds: &[Cmd], mem: &mut [u8], ptr: &mut usize) -> Result<()> {
-    //    println!("ptr = {ptr:?}");
+fn exec(cmds: &[Cmd], tp: &mut Tp) -> Result<()> {
     for cmd in cmds {
+        //println!("cmd = {cmd:?}, tpdbg = {:?}", tp.dbg());
         match cmd {
-            Cmd::Dec => mem[*ptr] -= 1,
-            Cmd::DecPtr => *ptr -= 1,
-            Cmd::Inc => mem[*ptr] += 1,
-            Cmd::IncPtr => *ptr += 1,
-            Cmd::Ld => print!("{}", mem[*ptr] as char),
+            Cmd::Dec => tp.dec()?,
+            Cmd::DecPtr => tp.dec_ptr()?,
+            Cmd::Inc => tp.inc()?,
+            Cmd::IncPtr => tp.inc_ptr()?,
+            Cmd::Ld => tp.print()?,
             Cmd::Lp(cmds) => {
-                while mem[*ptr] != 0 {
-                    exec(cmds, mem, ptr)?;
+                while tp.get() != 0 {
+                    exec(cmds, tp)?;
                 }
             }
-            Cmd::St => {
-                let mut inpt = [0; 1];
-                stdin().read_exact(&mut inpt)?;
-                mem[*ptr] = inpt[0];
+            Cmd::LpBg | Cmd::LpEn => {
+                return Err(Box::new(InterpreterError::UnexpectedInstruction));
             }
-            _ => {}
+            Cmd::St => tp.read()?,
         }
     }
 
@@ -83,7 +80,9 @@ fn parse(cmds: &[Cmd]) -> Result<Vec<Cmd>> {
                 Cmd::Inc => Some(Cmd::Inc),
                 Cmd::IncPtr => Some(Cmd::IncPtr),
                 Cmd::Ld => Some(Cmd::Ld),
-                Cmd::Lp(_) => None,
+                Cmd::Lp(_) => {
+                    return Err(Box::new(InterpreterError::UnexpectedInstruction));
+                }
                 Cmd::LpBg => {
                     lp_bg = i;
                     lp_stck += 1;
@@ -126,12 +125,355 @@ pub fn run(inpt: &[u8]) -> Result<()> {
     let cmds = lex(inpt);
     let parsed_cmds = parse(&cmds)?;
 
-    let mut mem = vec![0; 2048];
-    let mut ptr = 1024;
+    let mut tp = Tp::new();
 
-    exec(&parsed_cmds, &mut mem, &mut ptr)?;
+    exec(&parsed_cmds, &mut tp)?;
 
     //println!("MEM = {mem:?}");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::brainfuck::{lex, parse, Cmd};
+
+    #[test]
+    fn lex_single_cmds() {
+        let inpt = ">".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::IncPtr]);
+
+        let inpt = "<".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::DecPtr]);
+
+        let inpt = "+".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::Inc]);
+
+        let inpt = "-".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::Dec]);
+
+        let inpt = ".".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::Ld]);
+
+        let inpt = ",".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::St]);
+
+        let inpt = "[".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::LpBg]);
+
+        let inpt = "]".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![Cmd::LpEn]);
+    }
+
+    #[test]
+    fn lex_multi_cmds() {
+        let inpt = "><+-.,[]".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(
+            res,
+            vec![
+                Cmd::IncPtr,
+                Cmd::DecPtr,
+                Cmd::Inc,
+                Cmd::Dec,
+                Cmd::Ld,
+                Cmd::St,
+                Cmd::LpBg,
+                Cmd::LpEn
+            ]
+        );
+
+        let inpt = "][,.-+<>".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(
+            res,
+            vec![
+                Cmd::LpEn,
+                Cmd::LpBg,
+                Cmd::St,
+                Cmd::Ld,
+                Cmd::Dec,
+                Cmd::Inc,
+                Cmd::DecPtr,
+                Cmd::IncPtr,
+            ]
+        );
+
+        let inpt = "ABCDEFGHIJKLMNOPRSTUWXYZ".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![]);
+
+        let inpt = "abcdefghijklmnoprstuwxyz".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![]);
+
+        let inpt = "1234567890".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(res, vec![]);
+
+        let inpt = "a>b<c+d-e.f,g[h]i".as_bytes();
+        let res = lex(inpt);
+
+        debug_assert_eq!(
+            res,
+            vec![
+                Cmd::IncPtr,
+                Cmd::DecPtr,
+                Cmd::Inc,
+                Cmd::Dec,
+                Cmd::Ld,
+                Cmd::St,
+                Cmd::LpBg,
+                Cmd::LpEn
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_single_cmds() {
+        let cmds = vec![Cmd::IncPtr];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::IncPtr]);
+
+        let cmds = vec![Cmd::DecPtr];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::DecPtr]);
+
+        let cmds = vec![Cmd::Inc];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::Inc]);
+
+        let cmds = vec![Cmd::Dec];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::Dec]);
+
+        let cmds = vec![Cmd::Ld];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::Ld]);
+
+        let cmds = vec![Cmd::St];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::St]);
+
+        let cmds = vec![Cmd::LpBg, Cmd::LpEn];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(res, vec![Cmd::Lp(vec![])]);
+    }
+
+    #[test]
+    fn parse_multi_cmds() {
+        let cmds = vec![
+            Cmd::IncPtr,
+            Cmd::DecPtr,
+            Cmd::Inc,
+            Cmd::Dec,
+            Cmd::Ld,
+            Cmd::St,
+            Cmd::LpBg,
+            Cmd::LpEn,
+        ];
+        let res = parse(&cmds).unwrap();
+
+        debug_assert_eq!(
+            res,
+            vec![
+                Cmd::IncPtr,
+                Cmd::DecPtr,
+                Cmd::Inc,
+                Cmd::Dec,
+                Cmd::Ld,
+                Cmd::St,
+                Cmd::Lp(vec![]),
+            ]
+        );
+
+        let cmds = vec![Cmd::Inc, Cmd::LpBg, Cmd::Inc, Cmd::LpEn, Cmd::Inc];
+        let res = parse(&cmds).unwrap();
+
+        assert_eq!(res, vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]);
+
+        let cmds = vec![
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+        ];
+        let res = parse(&cmds).unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                Cmd::Inc,
+                Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                Cmd::Inc
+            ]
+        );
+
+        let cmds = vec![
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+        ];
+        let res = parse(&cmds).unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                Cmd::Inc,
+                Cmd::Lp(vec![
+                    Cmd::Inc,
+                    Cmd::Lp(vec![Cmd::Inc]),
+                    Cmd::Lp(vec![Cmd::Inc]),
+                    Cmd::Inc
+                ]),
+                Cmd::Inc
+            ]
+        );
+
+        let cmds = vec![
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+        ];
+        let res = parse(&cmds).unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                Cmd::Inc,
+                Cmd::Lp(vec![
+                    Cmd::Inc,
+                    Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                    Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                    Cmd::Inc
+                ]),
+                Cmd::Inc
+            ]
+        );
+
+        let cmds = vec![
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpBg,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+            Cmd::LpEn,
+            Cmd::Inc,
+        ];
+        let res = parse(&cmds).unwrap();
+
+        assert_eq!(
+            res,
+            vec![
+                Cmd::Inc,
+                Cmd::Lp(vec![
+                    Cmd::Inc,
+                    Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                    Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                    Cmd::Inc
+                ]),
+                Cmd::Inc,
+                Cmd::Inc,
+                Cmd::Lp(vec![
+                    Cmd::Inc,
+                    Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                    Cmd::Lp(vec![Cmd::Inc, Cmd::Lp(vec![Cmd::Inc]), Cmd::Inc]),
+                    Cmd::Inc
+                ]),
+                Cmd::Inc
+            ]
+        );
+    }
 }

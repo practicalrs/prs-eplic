@@ -2,8 +2,11 @@ use std::{error, fmt};
 
 #[derive(Debug)]
 pub enum InterpreterError {
+    AddingOverflow,
     CommandLine,
     NoLoopEnd,
+    SubtractionOverflow,
+    UnexpectedInstruction,
     UnexpectedLoopEnd,
 }
 

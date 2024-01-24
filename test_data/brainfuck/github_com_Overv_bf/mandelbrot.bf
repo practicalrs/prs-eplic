@@ -1,4 +1,3 @@
-[ Source: https://github.com/Overv/bf/blob/master/samples/mandelbrot.bf ]
 A mandelbrot set fractal viewer in brainfuck written by Erik Bosman
 +++++++++++++[->++>>>+++++>++>+<<<<<<]>>>>>++++++>--->>>>>>>>>>+++++++++++++++[[
 >>>>>>>>>]+[<<<<<<<<<]>>>>>>>>>-]+[>>>>>>>>[-]>]<<<<<<<<<[<<<<<<<<<]>>>>>>>>[-]+
