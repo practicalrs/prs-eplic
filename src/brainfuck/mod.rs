@@ -1,7 +1,7 @@
 /// Heavily inspired by:
-/// https://github.com/nushell/nushell/blob/main/crates/nu-parser/src/lex.rs
-/// https://github.com/Overv/bf/blob/master/src/main.rs
-use crate::Result;
+/// <https://github.com/nushell/nushell/blob/main/crates/nu-parser/src/lex.rs>
+/// <https://github.com/Overv/bf/blob/master/src/main.rs>
+use crate::{interpreter_error::InterpreterError, Result};
 use std::io::{stdin, Read};
 
 #[derive(Debug)]
@@ -18,6 +18,7 @@ enum Cmd {
 }
 
 fn exec(cmds: &[Cmd], mem: &mut [u8], ptr: &mut usize) -> Result<()> {
+    //    println!("ptr = {ptr:?}");
     for cmd in cmds {
         match cmd {
             Cmd::Dec => mem[*ptr] -= 1,
@@ -27,7 +28,7 @@ fn exec(cmds: &[Cmd], mem: &mut [u8], ptr: &mut usize) -> Result<()> {
             Cmd::Ld => print!("{}", mem[*ptr] as char),
             Cmd::Lp(cmds) => {
                 while mem[*ptr] != 0 {
-                    exec(cmds, mem, ptr)?
+                    exec(cmds, mem, ptr)?;
                 }
             }
             Cmd::St => {
@@ -69,7 +70,7 @@ fn lex(inpt: &[u8]) -> Vec<Cmd> {
     cmds
 }
 
-fn parse(cmds: &[Cmd]) -> Vec<Cmd> {
+fn parse(cmds: &[Cmd]) -> Result<Vec<Cmd>> {
     let mut parsed_cmds = vec![];
     let mut lp_bg = 0;
     let mut lp_stck = 0;
@@ -88,7 +89,9 @@ fn parse(cmds: &[Cmd]) -> Vec<Cmd> {
                     lp_stck += 1;
                     None
                 }
-                Cmd::LpEn => panic!("aaaa"),
+                Cmd::LpEn => {
+                    return Err(Box::new(InterpreterError::UnexpectedLoopEnd));
+                }
                 Cmd::St => Some(Cmd::St),
             };
 
@@ -104,7 +107,7 @@ fn parse(cmds: &[Cmd]) -> Vec<Cmd> {
                     lp_stck -= 1;
 
                     if lp_stck == 0 {
-                        parsed_cmds.push(Cmd::Lp(parse(&cmds[lp_bg + 1..i])));
+                        parsed_cmds.push(Cmd::Lp(parse(&cmds[lp_bg + 1..i])?));
                     }
                 }
                 _ => {}
@@ -113,18 +116,18 @@ fn parse(cmds: &[Cmd]) -> Vec<Cmd> {
     }
 
     if lp_stck != 0 {
-        panic!("AAA");
+        return Err(Box::new(InterpreterError::NoLoopEnd));
     }
 
-    parsed_cmds
+    Ok(parsed_cmds)
 }
 
 pub fn run(inpt: &[u8]) -> Result<()> {
     let cmds = lex(inpt);
-    let parsed_cmds = parse(&cmds);
+    let parsed_cmds = parse(&cmds)?;
 
-    let mut mem = vec![0; 1024];
-    let mut ptr = 512;
+    let mut mem = vec![0; 2048];
+    let mut ptr = 1024;
 
     exec(&parsed_cmds, &mut mem, &mut ptr)?;
 
