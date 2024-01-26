@@ -1,6 +1,10 @@
 /// Heavily inspired by:
-/// <https://github.com/nushell/nushell/blob/main/crates/nu-parser/src/lex.rs>
-/// <https://github.com/Overv/bf/blob/master/src/main.rs>
+/// <https://github.com/nushell/nushell>
+/// <https://github.com/Overv/bf>
+/// <https://github.com/tov/bf-rs>
+/// <https://github.com/Wilfred/bfc>
+/// <https://github.com/benkonz/brainfrick-rust>
+/// <https://github.com/nixpulvis/brainfuck>
 use crate::{interpreter_error::InterpreterError, tp::Tp, Result};
 
 #[derive(Debug, PartialEq)]

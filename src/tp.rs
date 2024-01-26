@@ -5,13 +5,13 @@ pub struct Tp {
     mem: Vec<u32>,
     ptr: usize,
 }
-
+/*
 #[derive(Debug)]
 pub struct TpDbg {
     mem: u32,
     ptr: usize,
 }
-
+*/
 impl Tp {
     pub fn new() -> Self {
         Self {
@@ -19,14 +19,14 @@ impl Tp {
             ptr: 1024,
         }
     }
+    /*
+        pub fn dbg(&self) -> TpDbg {
+            let mem = self.mem[self.ptr];
+            let ptr = self.ptr;
 
-    pub fn dbg(&self) -> TpDbg {
-        let mem = self.mem[self.ptr];
-        let ptr = self.ptr;
-
-        TpDbg { mem, ptr }
-    }
-
+            TpDbg { mem, ptr }
+        }
+    */
     pub fn dec(&mut self) -> Result<()> {
         if self.is_ptr_vld() {
             let op = self.mem[self.ptr]

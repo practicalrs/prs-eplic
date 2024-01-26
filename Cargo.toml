@@ -2,6 +2,15 @@
 name = "prs-eplic"
 version = "0.1.0"
 edition = "2021"
+authors = ["Michal Piotrowski <practicalrs.com@gmail.com>"]
+categories = ["compilers"]
+description = "Practical RS Esoteric Programming Languages Interpreters Collection."
+homepage = "https://github.com/practicalrs/prs-eplic"
+keywords = ["interpreter", "brainfuck"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/practicalrs/prs-eplic"
+rust-version = "1.59"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
