@@ -5,7 +5,7 @@
 /// <https://github.com/Wilfred/bfc>
 /// <https://github.com/benkonz/brainfrick-rust>
 /// <https://github.com/nixpulvis/brainfuck>
-use crate::{interpreter_error::InterpreterError, tp::Tp, Result};
+use crate::{interp_err::InterpErr, tp::Tp, Result};
 
 #[derive(Debug, PartialEq)]
 enum Cmd {
@@ -35,7 +35,7 @@ fn exec(cmds: &[Cmd], tp: &mut Tp) -> Result<()> {
                 }
             }
             Cmd::LpBg | Cmd::LpEn => {
-                return Err(Box::new(InterpreterError::UnexpectedInstruction));
+                return Err(Box::new(InterpErr::UnexpInst));
             }
             Cmd::St => tp.read()?,
         }
@@ -85,7 +85,7 @@ fn parse(cmds: &[Cmd]) -> Result<Vec<Cmd>> {
                 Cmd::IncPtr => Some(Cmd::IncPtr),
                 Cmd::Ld => Some(Cmd::Ld),
                 Cmd::Lp(_) => {
-                    return Err(Box::new(InterpreterError::UnexpectedInstruction));
+                    return Err(Box::new(InterpErr::UnexpInst));
                 }
                 Cmd::LpBg => {
                     lp_bg = i;
@@ -93,7 +93,7 @@ fn parse(cmds: &[Cmd]) -> Result<Vec<Cmd>> {
                     None
                 }
                 Cmd::LpEn => {
-                    return Err(Box::new(InterpreterError::UnexpectedLoopEnd));
+                    return Err(Box::new(InterpErr::UnexpLpEn));
                 }
                 Cmd::St => Some(Cmd::St),
             };
@@ -119,7 +119,7 @@ fn parse(cmds: &[Cmd]) -> Result<Vec<Cmd>> {
     }
 
     if lp_stck != 0 {
-        return Err(Box::new(InterpreterError::NoLoopEnd));
+        return Err(Box::new(InterpErr::NoLpEn));
     }
 
     Ok(parsed_cmds)

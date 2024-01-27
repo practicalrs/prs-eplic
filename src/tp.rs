@@ -1,4 +1,4 @@
-use crate::{interpreter_error::InterpreterError, Result};
+use crate::{interp_err::InterpErr, Result};
 use std::io::{stdin, Read};
 
 pub struct Tp {
@@ -31,7 +31,7 @@ impl Tp {
         if self.is_ptr_vld() {
             let op = self.mem[self.ptr]
                 .checked_sub(1)
-                .ok_or(InterpreterError::SubtractionOverflow)?;
+                .ok_or(InterpErr::SubOvflw)?;
 
             self.mem[self.ptr] = op;
         }
@@ -43,7 +43,7 @@ impl Tp {
         let op = self
             .ptr
             .checked_sub(1)
-            .ok_or(InterpreterError::SubtractionOverflow)?;
+            .ok_or(InterpErr::SubOvflw)?;
 
         self.ptr = op;
 
@@ -58,7 +58,7 @@ impl Tp {
         if self.is_ptr_vld() {
             let op = self.mem[self.ptr]
                 .checked_add(1)
-                .ok_or(InterpreterError::AddingOverflow)?;
+                .ok_or(InterpErr::AddOvflw)?;
 
             self.mem[self.ptr] = op;
         }
@@ -70,7 +70,7 @@ impl Tp {
         let op = self
             .ptr
             .checked_add(1)
-            .ok_or(InterpreterError::AddingOverflow)?;
+            .ok_or(InterpErr::AddOvflw)?;
 
         self.ptr = op;
 
