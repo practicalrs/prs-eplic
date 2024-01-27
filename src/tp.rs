@@ -5,13 +5,14 @@ pub struct Tp {
     mem: Vec<u32>,
     ptr: usize,
 }
-/*
+
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct TpDbg {
     mem: u32,
     ptr: usize,
 }
-*/
+
 impl Tp {
     pub fn new() -> Self {
         Self {
@@ -19,14 +20,14 @@ impl Tp {
             ptr: 1024,
         }
     }
-    /*
-        pub fn dbg(&self) -> TpDbg {
-            let mem = self.mem[self.ptr];
-            let ptr = self.ptr;
 
-            TpDbg { mem, ptr }
-        }
-    */
+    pub fn dbg(&self) -> TpDbg {
+        let mem = self.mem[self.ptr];
+        let ptr = self.ptr;
+
+        TpDbg { mem, ptr }
+    }
+
     pub fn dec(&mut self) -> Result<()> {
         if self.is_ptr_vld() {
             let op = self.mem[self.ptr]
@@ -40,10 +41,7 @@ impl Tp {
     }
 
     pub fn dec_ptr(&mut self) -> Result<()> {
-        let op = self
-            .ptr
-            .checked_sub(1)
-            .ok_or(InterpErr::SubOvflw)?;
+        let op = self.ptr.checked_sub(1).ok_or(InterpErr::SubOvflw)?;
 
         self.ptr = op;
 
@@ -67,10 +65,7 @@ impl Tp {
     }
 
     pub fn inc_ptr(&mut self) -> Result<()> {
-        let op = self
-            .ptr
-            .checked_add(1)
-            .ok_or(InterpErr::AddOvflw)?;
+        let op = self.ptr.checked_add(1).ok_or(InterpErr::AddOvflw)?;
 
         self.ptr = op;
 

@@ -21,8 +21,11 @@ enum Cmd {
 }
 
 fn exec(cmds: &[Cmd], tp: &mut Tp) -> Result<()> {
+    let debug = false;
     for cmd in cmds {
-        //println!("cmd = {cmd:?}, tpdbg = {:?}", tp.dbg());
+        if debug {
+            println!("cmd = {cmd:?}, tpdbg = {:?}", tp.dbg());
+        }
         match cmd {
             Cmd::Dec => tp.dec()?,
             Cmd::DecPtr => tp.dec_ptr()?,
