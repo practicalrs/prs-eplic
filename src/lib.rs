@@ -3,6 +3,7 @@ use std::{env, error::Error, fs::read};
 
 mod brainfuck;
 mod interp_err;
+mod sus;
 mod tp;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -10,6 +11,7 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 #[derive(Debug)]
 enum Lng {
     Brainfuck,
+    Sus,
     Unknown,
 }
 
@@ -23,6 +25,7 @@ pub fn run() -> Result<()> {
     let lng = if let Some(ext) = ext {
         match ext {
             "b" | "bf" => Lng::Brainfuck,
+            "sus" => Lng::Sus,
             _ => Lng::Unknown,
         }
     } else {
@@ -31,8 +34,10 @@ pub fn run() -> Result<()> {
 
     let inpt = read(file)?;
 
-    if let Lng::Brainfuck = lng {
-        brainfuck::run(&inpt)?;
+    match lng {
+        Lng::Brainfuck => brainfuck::run(&inpt)?,
+        Lng::Sus => sus::run(&inpt)?,
+        _ => {},
     }
 
     Ok(())
